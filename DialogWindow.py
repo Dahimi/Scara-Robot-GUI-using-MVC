@@ -5,8 +5,9 @@ from PIL import ImageTk,Image
 from tkinter import filedialog, messagebox
 import time
 class DialogWindow(Toplevel) :
-    def __init__(self , master = None):
-        super().__init__(master)
+    def __init__(self , view):
+        super().__init__(view.root)
+        self.view = view
         self.title("Configuaration")
         self.geometry("600x600")
         self.setFrames()
@@ -15,26 +16,30 @@ class DialogWindow(Toplevel) :
         self.parentFrame , self.portTextField, self.dataRateCombo, self.type
         self.arm1TextField , self.arm2TextField , self.distanceTextField
         self.imageFrame, self.scaraImage
-        self.import1 =" "
+        self.import1 =r"C:\Users\pc\PycharmProjects\Scara-Robot-GUI-using-MVC\import.txt"
         self.import2 = " "
-        self.export1 =" "
-        self.export2 = " "
+        self.export1 =r"C:\Users\pc\PycharmProjects\Scara-Robot-GUI-using-MVC\file1.txt"
+        self.export2 =r"C:\Users\pc\PycharmProjects\Scara-Robot-GUI-using-MVC\file2.txt"
         self.okButton , self.cancelButton
-        self.responce = 0
+        self.responce = -1
     def startCommunication(self):
         print("communicating with arduino")
         popupProgressBar = Toplevel(self)
         progress_bar = ttk.Progressbar(popupProgressBar, orient = HORIZONTAL, length = 250, mode ='determinate')
-        connectionLabel = Label(popupProgressBar, text ="Etablissement de la communication avec la carte arduino")
-        connectionLabel.pack(padx = 10 , pady = 10)
-        progress_bar.pack(padx = 10  , pady = 10)
-        for i in range(1,6) :
-            progress_bar['value'] = i*20
-            popupProgressBar.update()
-            time.sleep(1)
-        popupProgressBar.destroy()
-        messagebox.showinfo("Communication avec Arduino" , "La connexion avec la carte arduino est \n bien établie")
-        return 1
+        if self.view.controller.startCommunication() == 1 :
+            connectionLabel = Label(popupProgressBar, text ="Etablissement de la communication avec la carte arduino")
+            connectionLabel.pack(padx = 10 , pady = 10)
+            progress_bar.pack(padx = 10  , pady = 10)
+            for i in range(1,6) :
+                progress_bar['value'] = i*20
+                popupProgressBar.update()
+                time.sleep(1)
+            popupProgressBar.destroy()
+            messagebox.showinfo("Communication avec Arduino" , "La connexion avec la carte arduino est \n bien établie")
+            return 1
+        else :
+            messagebox.showerror("Communication avec Arduino" , "Le port que vous avez saisi n'est pas accessible pour le moment\n Veuillez choisir un autre")
+            return 0
     def setFrames(self):
         self.parentFrame = LabelFrame(self)
         message_font = font.Font(size=20)
@@ -67,10 +72,10 @@ class DialogWindow(Toplevel) :
             self.export2 = filedialog.askopenfilename(initialdir="/Users\pc\PycharmProjects\Scara-Robot-GUI-using-MVC",
                                                       title=" selectionner le fichier 1")
         importButton1 = Button(fileFrame , text = "Fichier 1" , command = import1)
-        importButton2 = Button(fileFrame, text="Fichier 2" , command =import2 )
+        #importButton2 = Button(fileFrame, text="Fichier 2" , command =import2 )
         importLabel.grid(row = 0 , column  = 0 , columnspan = 2 )
-        importButton1.grid(row = 0 , column = 2)
-        importButton2.grid(row=0, column=3)
+        importButton1.grid(row = 0 , column = 2, columnspan = 2)
+        #importButton2.grid(row=0, column=3)
         exportLabel = Label(fileFrame, text="fichier à exporter")
         exportButton1 = Button(fileFrame, text="Fichier 1", command = export1)
         exportButton2 = Button(fileFrame, text="Fichier 2" , command = export2)
@@ -84,8 +89,8 @@ class DialogWindow(Toplevel) :
         portLabel = Label(arduinoFrame, text = "Le port de la Carte Arduino ")
         self.portTextField = Entry(arduinoFrame)
         dataRateLabel = Label(arduinoFrame, text = "Débit de communication ")
-        self.dataRateCombo = ttk.Combobox(arduinoFrame , values = ( "9600", "11250","1000000" ))
-        self.dataRateCombo.current(0)
+        self.dataRateCombo = ttk.Combobox(arduinoFrame , values = ( "9600", "115200","1000000" ))
+        self.dataRateCombo.current(2)
         portLabel.grid(row = 0 , column = 0)
         self.portTextField.grid(row = 0 , column = 1)
         dataRateLabel.grid(row = 0 , column = 2)
@@ -118,6 +123,7 @@ class DialogWindow(Toplevel) :
         Label(dimensionFrame, text="distance D -pour Scara parallèle(mm):").grid(row=4, column=0, columnspan = 3)
         self.distanceTextField = Entry(dimensionFrame)
         self.distanceTextField.grid(row = 4 , column = 3)
+        self.distanceTextField.insert(0, "0")
         dimensionFrame.grid(row = 3 , column = 1)
 
         self.imageFrame = LabelFrame(self.parentFrame )
@@ -126,8 +132,11 @@ class DialogWindow(Toplevel) :
         self.imageFrame.grid(row = 4, column = 1)
 
         def next() :
-            if self.startCommunication() == 0:
+            if (self.setRobotConfiguration() == 0):
+                print("repeat")
                 return
+            #if self.startCommunication() == 0 :
+            #    return
             self.responce = 1
             self.destroy()
             self.grab_release()
@@ -144,18 +153,29 @@ class DialogWindow(Toplevel) :
         self.okButton.grid(row = 1 , column = 4)
         self.cancelButton.grid(row = 1 , column = 5)
         cornerFrame.grid(row = 5, column = 1)
-root = Tk()
-root.title("title")
-root.attributes("-fullscreen", True)
-root.bind("<F11>", lambda event: root.attributes("-fullscreen",
-                                    not root.attributes("-fullscreen")))
-root.bind("<Escape>", lambda event: root.attributes("-fullscreen", False))
-dialogWindow = DialogWindow(root)
-root.withdraw()
-root.wait_window(dialogWindow)
-root.update()
-root.deiconify()
-print("destroyed")
-
-
-mainloop()
+    def setRobotConfiguration(self):
+        robotConfiguration = RobotConfiguration(self.import1, self.import2, self.export1, self.export2, self.arm1TextField.get(), self.arm2TextField.get(), self.distanceTextField.get(),
+                                                self.portTextField.get(), self.dataRateCombo.get(), self.type)
+        if(robotConfiguration.getState() == 0):
+            return 0
+        self.view.controller.setRobotConfiguration(robotConfiguration)
+        return 1
+class RobotConfiguration() :
+    def __init__(self, importFile1, importFile2, exportFile1, exportFile2, arm1, arm2 ,distance,  arduinoPort , dataRate, type   ):
+        self.importFile1 = importFile1
+        self.importFile2 = importFile2
+        self.exportFile1 =exportFile1
+        self.exportFile2 = exportFile2
+        try :
+            self.arduinoPort = arduinoPort.strip()
+            self.dataRate = dataRate.strip()
+            self.type = type.get()
+            self.arm1 = int(arm1.strip())
+            self.arm2 = int(arm2.strip())
+            self.distance = int( distance.strip())
+            self.state = 1
+        except ValueError :
+            messagebox.showerror("Erreur dans le format" , "Veuillez saisir des valeur numérique dans le champ des dimensions")
+            self.state = 0
+    def getState(self):
+        return self.state

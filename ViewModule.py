@@ -9,17 +9,19 @@ from PIL import ImageTk,Image
 from tkinter import filedialog, messagebox
 import time
 import serial
-
+from math import *
 class View() :
     def __init__(self, controller):
         self.controller = controller
+        self.canvasHeight = 600
+        self.animationMenu = self.root =  self.canvasWidth = self.dialogWindow = self.isExport = self.isImport = self.theta1 = self.theta2 = " "
+        self.mainPannel = self.workspace = self.workspacePanel = self.XLabel = self.YLabel = self.stopRecordImage = self.recordImage = self.stopImage = self.runImage = " "
+        self.mode = self.source = self.shape = self.temperature1 = self.temperature2 = self.vitesse1 = self.vitesse2 = self.h = " "
+        self.runButton = self.stopButton= self.restartButton = self.color = self.shape = self.size =" "
+        self.robotDraw = self.elbow = self.center = self.effectiveWorkspace= self.bannedZone = " "
         controller.setModel(self)
         print("model created")
         #self.initializeMainWindow()
-        self.animationMenu = self.root= self.canvasHeight= self.canvasWidth= self.dialogWindow= self.isExport= self.isImport= self.theta1= self.theta2= " "
-        self.mainPannel= self.workspace= self.workspacePanel= self.XLabel= self.YLabel= self.stopRecordImage= self.recordImage =self.stopImage= self.runImage= " "
-        self.mode= self.source= self.temperature1= self.temperature2= self.vitesse1= self.vitesse2= self.h = " "
-        self.runButton = self.stopButton, self.restartButton =self.color = self.shape= self.size= "  "
     def initializeMainWindow(self):
         self.root = Tk()
         if self.setDialogWindow() == 1 :
@@ -97,10 +99,10 @@ class View() :
         menuBar.add_cascade(label="Formes", menu=shapeMenu)
         shapeSubMenu = Menu(shapeMenu)
         shapeMenu.add_cascade(label="choisir la forme", menu=shapeSubMenu)
-        shape = StringVar()
-        shapeSubMenu.add_radiobutton(label="Carré", value="square", variable=shape, command=self.controller.setShape)
-        shapeSubMenu.add_radiobutton(label="Triangle", value="triangle", variable=shape, command=self.controller.setShape)
-        shapeSubMenu.add_radiobutton(label="Circle", value="circle", variable=shape, command=self.controller.setShape)
+        self.shape = StringVar()
+        shapeSubMenu.add_radiobutton(label="Carré", value="square", variable=self.shape, command=self.controller.setShape)
+        shapeSubMenu.add_radiobutton(label="Triangle", value="triangle", variable=self.shape, command=self.controller.setShape)
+        shapeSubMenu.add_radiobutton(label="Circle", value="circle", variable=self.shape, command=self.controller.setShape)
         # about
         aboutMenu = Menu(menuBar)
         menuBar.add_cascade(label="A propos", menu=aboutMenu)
@@ -161,16 +163,24 @@ class View() :
         self.vitesse2 = Label(workspacePanel, width="15", bd=1, relief=SUNKEN)
         self.vitesse2.grid(row=5, column=1, padx=4, pady=6)
         Label(workspacePanel, text="La vitesse du moteur 2 : ").grid(row=5, column=0, padx=4, pady=6)
+        self.realX = Label(workspacePanel, width="15", bd=1, relief=SUNKEN)
+        self.realX.grid(row=4, column=1, padx=4, pady=6)
+        Label(workspacePanel, text="L'abscisse réel : ").grid(row=4, column=0, padx=4, pady=6)
+        self.realY = Label(workspacePanel, width="15", bd=1, relief=SUNKEN)
+        self.realY.grid(row=5, column=1, padx=4, pady=6)
+        Label(workspacePanel, text="L'ordonné réel : ").grid(row=5, column=0, padx=4, pady=6)
         workspacePanel.pack(side=LEFT, fill=Y)
     def setWorkspace(self):
-        self.workspacePanel = LabelFrame(self.mainPannel , text = "Espace de travail",width=600, height=400 , padx = 10 , pady = 10 )
+        self.workspacePanel = LabelFrame(self.mainPannel , text = "Espace de travail",width=630, height=630 , padx = 7 , pady = 7 )
         self.canvasHeight = 600
         self.canvasWidth = 600
+        self.controller.setRapport()
         self.workspace = Canvas(self.workspacePanel,width=self.canvasWidth,height=self.canvasHeight, bg = "white")
         self.workspace.create_line(self.canvasWidth /2 ,  0 , self.canvasWidth/2 ,self.canvasHeight , fill="#476042" , width = 3  )
         self.workspace.create_line(0, self.canvasHeight/2, self.canvasWidth , self.canvasHeight/2, fill="#476042",width=3)
-        #self.workspace.create_line(self.canvasWidth/2,self.canvasHeight/2,(self.canvasWidth/4)*3,self.canvasHeight/3,self.canvasWidth/ 2,self.canvasHeight/6, fill= "blue" , width = 10)
-        #self.workspacePanel.grid(row=0, column=3, columnspan=4, sticky='E')
+        self.effectiveWorkspace = self.workspace.create_oval(0, 0, self.canvasWidth, self.canvasHeight, dash = (3, 4) , outline = "red")
+        self.bannedZone = self.workspace.create_oval(self.canvasWidth /2  - self.controller.getMinRadius(), self.canvasHeight/2  -self.controller.getMinRadius(),
+                                                     self.canvasWidth /2  + self.controller.getMinRadius(), self.canvasHeight/2  +self.controller.getMinRadius(), dash=(3, 4),outline="red")
         self.workspace.pack()
         self.workspace.pack_propagate(0)
         self.workspacePanel.pack(fill = Y , side = LEFT)
@@ -178,13 +188,13 @@ class View() :
         self.workspace.bind( "<B1-Motion>", self.controller.mouseDragged )
         self.workspace.bind("<Button-1>", self.controller.mousePressed)
         self.workspace.bind("<Leave>", self.controller.mouseExit)
-        return
-
     def paint(self , point):
         python_green = "#476042"
-        x1, y1 = (point.x - 3), (point.y - 3)
-        x2, y2 = (point.x + 3), (point.y + 3)
-        self.workspace.create_oval(x1, y1, x2, y2, fill=point.color)
+        self.XLabel["text"] = str(point.x - self.canvasWidth / 2)
+        self.YLabel["text"] = str(self.canvasHeight / 2 - point.y)
+        x1, y1 = (point.x - point.size), (point.y - point.size)
+        x2, y2 = (point.x + point.size), (point.y + point.size)
+        self.workspace.create_oval(x1, y1, x2, y2, fill=point.color, outline= '')
         # self.controller.mouseDragged(event)
     def setExternalPannel(self):
         externalFrame = LabelFrame(self.mainPannel, text="Les communication externes", width=400, height=400, padx=10,
@@ -250,6 +260,11 @@ class View() :
         Label(statusBar, text="La coordonnées Y: ").pack(side=RIGHT, padx=4, pady=2)
         statusBar.pack(side=BOTTOM, fill=X)
         return
+
+    def _from_rgb(self,rgb):
+        """translates an rgb tuple of int to a tkinter friendly color code
+        """
+        return "#%02x%02x%02x" % rgb
     def newWindow(self) :
         self.root.destroy()
         self.initializeMainWindow()
@@ -257,8 +272,328 @@ class View() :
     def setPenColor(self, color):
         self.color.set(color)
         self.controller.setPenColor()
-
+    def resetRealCoordinates(self, realPoint):
+        self.realX["text"] = realPoint.x
+        self.realY["text"] = realPoint.y
     def clairCanvas(self):
         self.workspace.delete("all")
+        self.bannedZone = self.workspace.create_oval(self.canvasWidth / 2 - self.controller.getMinRadius(),
+                                                     self.canvasHeight / 2 - self.controller.getMinRadius(),
+                                                     self.canvasWidth / 2 + self.controller.getMinRadius(),
+                                                     self.canvasHeight / 2 + self.controller.getMinRadius(),
+                                                     dash=(3, 4), outline="red")
         self.workspace.create_line(self.canvasWidth / 2, 0, self.canvasWidth / 2, self.canvasHeight, fill="#476042",width=3)
         self.workspace.create_line(0, self.canvasHeight / 2, self.canvasWidth, self.canvasHeight / 2, fill="#476042",width=3)
+        self.effectiveWorkspace = self.workspace.create_oval(0, 0, self.canvasWidth, self.canvasHeight, dash = (3, 4) , outline = "red")
+    def drawRobot(self, point, elbow):
+        if self.robotDraw == " ":
+            self.robotDraw = self.workspace.create_line(self.canvasWidth/2,self.canvasHeight/2,elbow.x , elbow.y , point.x, point.y,fill= "blue", width = 10 )
+            self.elbow = self.workspace.create_oval(elbow.x - 5, elbow.y - 5, elbow.x + 5, elbow.y + 5, fill="black")
+            self.center = self.workspace.create_oval(- 7, -7, 7, 7, fill="black")
+        else :
+            self.workspace.coords(self.robotDraw,self.canvasWidth/2,self.canvasHeight/2,elbow.x , elbow.y , point.x, point.y )
+            self.workspace.coords(self.elbow,elbow.x - 7, elbow.y - 7, elbow.x + 7, elbow.y + 7 )
+            self.workspace.coords(self.center,self.canvasWidth/2- 10,self.canvasHeight/2 -10,self.canvasWidth/2 +10, self.canvasHeight/2+10)
+
+class Controller() :
+    def __init__(self ):
+        self.view = View(self)
+        print("view is created")
+        self.model
+        self.isRecording = False
+        self.runSimulator()
+    def runSimulator(self):
+        self.view.initializeMainWindow()
+    def setModel(self, view):
+        self.model = Model(view )
+    def setRobotConfiguration(self, robotConfiguration):
+        self.model.setRobotConfiguration(robotConfiguration)
+    def startCommunication(self):
+        return self.model.startCommunication()
+    def getMinRadius(self):
+        minRadius = self.model.robotConfiguration.arm1 -self.model.robotConfiguration.arm2
+        return  abs(minRadius) / self.model.rappot
+    def setRapport(self):
+        self.model.setRapport()
+    def openFile(self, option ):
+        self.model.openFile(option)
+    def recordAnimation(self):
+        self.view.recordButton["state"] = "disabled"
+        self.view.stopRecordButton["state"]  = "normal"
+        self.isRecording = True
+    def stopRecordAnimation(self):
+        self.view.recordButton["state"] = "normal"
+        self.view.stopRecordButton["state"] = "disabled"
+        self.isRecording = False
+    def startAnimation(self):
+        self.view.animationMenu.entryconfig("Lancer l'animation", state = "disabled")
+        self.view.animationMenu.entryconfig("Arrêter l'animation", state="normal")
+        self.view.animationMenu.entryconfig("Réinitialiser l'animation", state="normal")
+        self.view.runButton["state"] = "disabled"
+        self.view.stopButton["state"] = "normal"
+        self.view.restartButton["state"] = "normal"
+        self.model.startAnimation()
+    def mousePressed(self, event):
+        self.mouseDragged(event)
+    def mouseExit(self, event):
+        if self.isRecording == True:
+            if win32api.GetKeyState(0x01) <0 :
+                messagebox.showwarning("POSITION IMPOSSIBLE", "\nla position que vous anticipez n'est pas accessible \n \nvous avez dépassé l'espace de travail")
+    def mouseDragged(self, event) :
+        if self.isRecording == True:
+            if (event.x -self.view.canvasWidth/2)**2 + (event.y- self.view.canvasHeight/2)**2 > (self.view.canvasWidth /2)**2 :
+                #messagebox.showwarning("POSITION IMPOSSIBLE","\nla position que vous anticipez n'est pas accessible \n \nvous avez dépassé l'espace de travail")
+                return
+            if (event.x -self.view.canvasWidth/2)**2 + (event.y- self.view.canvasHeight/2)**2 < (self.getMinRadius())**2 :
+                print((event.x -self.view.canvasWidth/2)**2 + (event.y- self.view.canvasHeight/2)**2 )
+                print( self.getMinRadius())
+                return
+            self.model.mouseDragged(event)
+    def stopAnimation(self):
+        self.view.animationMenu.entryconfig("Lancer l'animation", state="normal")
+        self.view.animationMenu.entryconfig("Arrêter l'animation", state="disabled")
+        self.view.animationMenu.entryconfig("Réinitialiser l'animation", state="normal")
+        self.view.runButton["state"] = "normal"
+        self.view.stopButton["state"] = "disabled"
+        self.view.restartButton["state"] = "normal"
+        self.model.stopAnimation()
+    def restartAnimation(self):
+        self.view.animationMenu.entryconfig("Lancer l'animation", state="normal")
+        self.view.animationMenu.entryconfig("Arrêter l'animation", state="normal")
+        self.view.runButton["state"] = "normal"
+        self.view.stopButton["state"] = "normal"
+        self.model.restartAnimation()
+    def setPenColor(self):
+        self.model.penColor = self.view.color.get()
+        print(self.model.penColor)
+    def setPenSize(self):
+        self.model.penSize = self.view.size.get()
+        print(self.model.penSize)
+    def setShape(self):
+        if self.view.shape.get() == "circle" :
+            self.model.drawCircle()
+        elif self.view.shape.get() == "square" :
+            self.model.drawSquare()
+        elif self.view.shape.get() == 'triangle' :
+            self.model.drawTriangle()
+    def file_command(self):
+        return
+    def about(self):
+        self.model.about()
+    def setWhereToSend(self):
+        self.model.isToFile = True if self.view.isImport.get() == 1 else False
+        self.model.isToArduino =True if  self.view.isExport.get() == 1 else False
+        print("envoyer vers : arduino " + str(self.model.isToArduino) + " vers fichier " + str(self.model.isToFile))
+    def setSource(self):
+        self.model.readFromFile = False if self.view.source.get() == "draw" else True
+        self.model.readDraw = True if self.view.source.get() == "draw" else False
+    def setMove(self):
+        self.model.isPen = True if self.view.move.get() == "pen" else False
+        self.isElectromangnet =False if self.view.source.get() != "pen" else True
+    def setMode(self):
+        self.model.isSysnchronized = True if self.view.mode.get() == "direct" else False
+        print("mode syncro" + str(self.model.isSysnchronized))
+class Model() :
+    def __init__(self, view ):
+        self.view = view
+        self.robotConfiguration =""
+        self.ArduinoSerial = ""
+        self.isRecording = False
+        self.isSysnchronized  = False
+        self.isToArduino = False
+        self.isToFile = True
+        self.readFromFile = False
+        self.readDraw = True
+        self.penColor = "red"
+        self.penSize = 4
+        self.robotSpeed = 20.0
+        self.points =[]
+        self.rappot = 1
+        self.isPen = True
+        self.isElectromangnet = False
+        self.shouldStopAnimation = True
+        self.shouldRestartAnimation = False
+        self.simulationThread = SimulationThread(self)
+        self.simulationThread.daemon = True ;
+        self.simulationThread.start()
+    def setRobotConfiguration(self, robotConfiguration):
+        self.robotConfiguration = robotConfiguration
+    def setRapport(self):
+        self.rappot = (self.robotConfiguration.arm1 + self.robotConfiguration.arm2) / self.view.canvasWidth * 2
+    def openFile(self, option):
+        if option == "import1" :
+            os.system(self.robotConfiguration.importFile1)
+        elif option == "import2" :
+            os.system(self.robotConfiguration.importFile2)
+        elif option == "export1":
+            os.system(self.robotConfiguration.exportFile1)
+        elif option =="export2" :
+            os.system(self.robotConfiguration.exportFile2)
+    def mouseDragged(self, event):
+        point = Point(self.penSize, self.penColor, event.x , event.y)
+        self.points.append(point)
+        self.view.paint(point)
+    def restartAnimation(self):
+        self.shouldStopAnimation = True
+        self.shouldRestartAnimation = True
+    def startAnimation(self):
+        self.shouldStopAnimation = False
+        print (self.shouldStopAnimation)
+    def stopAnimation(self):
+        self.shouldStopAnimation = True
+    def about(self):
+        messagebox.showinfo("A propos " , "Ce programme est un simulateur du robot Scara " + self.robotConfiguration.type +"\n\n"
+                            +"Ce robot a les dimensions suivantes : * Bras1 : " + str(self.robotConfiguration.arm1) + "* Bras2 : " + str(self.robotConfiguration.arm2)
+                            +"\n le port de la carte Arduino est: " + self.robotConfiguration.arduinoPort +
+                            "\n le débit de communication est : " + self.robotConfiguration.dataRate)
+
+    def startCommunication(self):
+        try :
+            self.ArduinoSerial = serial.Serial(self.robotConfiguration.arduinoPort, self.robotConfiguration.dataRate, timeout=1)
+            time.sleep(2)
+            print("connection est établie")
+            return 1
+        except serial.SerialException :
+            return 0
+
+    def createPoint(self, realPoint):
+        x = (realPoint.x / self.rappot + self.view.canvasWidth / 2)
+        y =  (self.view.canvasHeight / 2 - realPoint.y / self.rappot )
+        return Point(self.penSize, realPoint.color, x, y, realPoint.z)
+    def createRealPoint(self, point):
+        x = (point.x - self.view.canvasWidth/2)*self.rappot
+        y = self.rappot * (self.view.canvasHeight /2 - point.y)
+        return RealPoint(point.color,x, y , point.z )
+    def calculateCorrespondingAngles(self, realPoint):
+        x, y , l1 , l2= realPoint.x , realPoint.y , self.robotConfiguration.arm1 ,self.robotConfiguration.arm2
+        t1 = (x**2 + y**2 - l1**2 - l2**2 )
+        t2 = 2*l1*l2
+        theta2 = acos(t1/t2)
+        theta1 = atan2(y, x ) - atan2(l2 * sin(theta2) , l1 + l2 * cos(theta2))
+        realPoint.theta1 = theta1
+        realPoint.theta2 = theta2
+    def drawCircle(self) :
+        self.points = []
+        rayon = self.robotConfiguration.arm1 + self.robotConfiguration.arm2/2
+        partialAngle = 2 * pi / 40;
+        x, y = 0, 0
+        for i in range(40) :
+            x = rayon * cos(partialAngle * i)
+            y = rayon * sin(partialAngle * i)
+            self.points.append (self.createPoint(RealPoint(self.penColor,x, y)))
+        print("circle")
+    def drawSquare(self):
+        self.points = []
+        x = -60
+        y = 60
+        for i in range(60) :
+            self.points.append(self.createPoint( RealPoint(self.penColor, x, y)))
+            x += 2
+        for i in range(60):
+            self.points.append(self.createPoint(RealPoint(self.penColor, x, y)))
+            y -= 2
+        for i in range(60):
+            self.points.append(self.createPoint(RealPoint(self.penColor, x, y)))
+            x -= 2
+        for i in range(60):
+            self.points.append(self.createPoint(RealPoint(self.penColor, x, y)))
+            y += 2
+    def drawTriangle(self):
+        pass
+    def createPointFromAngles(self, realPoint):
+        l1, l2, theta1 , theta2 =  self.robotConfiguration.arm1 ,self.robotConfiguration.arm2, realPoint.theta1, realPoint.theta2
+        x = l1 * cos(theta1) + l2*cos(theta1 + theta2)
+        y = l1 * sin(theta1) + l2*sin(theta1 + theta2)
+        return self.createPoint(RealPoint("black", x , y))
+    def arduinoWrite(self, theta1, theta2, afterstate = True):
+        print(theta1, "  ",theta2, "  ",afterstate )
+
+class Point() :
+    def __init__(self, size, color , x , y, z = 0) :
+        self.size , self.color , self.x , self.y , self.z = size , color , x , y , z
+    def toString(self):
+        print("x :", self.x, "  y ", self.y)
+class RealPoint():
+    def __init__(self, color, x, y, z=0):
+        self.x, self.y, self.z = x, y, z
+        self.theta1 = self.theta2 = 0
+        self.color =color
+    def timeFromPreviousPoint(self, previousPoint, speed):
+        if previousPoint == "" : return 0
+        print(sqrt((self.x - previousPoint.x)**2 + (self.y - previousPoint.y)**2))
+        return sqrt((self.x - previousPoint.x)**2 + (self.y - previousPoint.y)**2)/speed
+class SimulationThread(threading.Thread):
+
+    def __init__(self, model):
+            threading.Thread.__init__(self)
+            self.model = model
+    def run(self):
+        if self.model.isSysnchronized == False :
+            for i in range(10) :
+                self.wait()
+                iteratedPoints = self.model.points[:]
+                self.model.view.clairCanvas()
+                times = 0
+                realPoint = nextRealPoint = ""
+                exportFile1 = open(self.model.robotConfiguration.exportFile1, "w")
+                exportFile2 = open(self.model.robotConfiguration.exportFile2, "w")
+                i = 1
+                for point in iteratedPoints :
+                    if self.wait()  == 0:
+                        print("quit")
+                        break
+                    if i < len(iteratedPoints) :
+                        nextRealPoint = iteratedPoints[i]
+                        i += 1
+                    else :
+                        nextRealPoint = ""
+                    realPoint = self.model.createRealPoint(point)
+                    self.model.calculateCorrespondingAngles(realPoint)
+                    l1 = self.model.robotConfiguration.arm1
+                    elbow = RealPoint(realPoint.color,cos(realPoint.theta1)*l1 , sin(realPoint.theta1) * l1)
+                    if self.model.isToFile == True :
+                        file1line = str(times) + "," + str(realPoint.theta1*180/pi) + "\n"
+                        file2line = str(times) + "," + str(realPoint.theta2*180/pi)+ "\n"
+                        times += realPoint.timeFromPreviousPoint(nextRealPoint, self.model.robotSpeed)
+                        #print(file1line)
+                        exportFile1.write(file1line)
+                        exportFile2.write(file2line)
+                        pass
+                    if self.model.isToArduino == True :
+                        if self.model.isPen == True :
+                            distance = 0
+                            if nextRealPoint != "" :
+                                distance = sqrt((realPoint.x - nextRealPoint.x) ** 2 + (realPoint.y - nextRealPoint.y) ** 2)
+                            afterstate = True if distance < 10 else False
+                            self.model.arduinoWrite(realPoint.theta1*180/pi,realPoint.theta2*180/pi, afterstate)
+                        else :
+                            if point == iteratedPoints[-1] : self.model.arduinoWrite(realPoint.theta1*180/pi,realPoint.theta2*180/pi, False)
+                            else : self.model.arduinoWrite(realPoint.theta1*180/pi,realPoint.theta2*180/pi, True)
+                    #self       .model.view.paint(self.model.createPointFromAngles(realPoint))
+                    self.model.view.paint(point)
+                    self.model.view.resetRealCoordinates(realPoint)
+                    self.model.view.drawRobot(point, self.model.createPoint(elbow))
+                    time.sleep(0.2)
+                self.stopAnimation()
+                self.model.view.robotDraw = " "
+                exportFile1.close()
+                exportFile2.close()
+        print("run methods")
+    def wait(self):
+        while (self.model.shouldStopAnimation == True):
+            if self.model.shouldRestartAnimation == True: break
+            time.sleep(0.01)
+        if self.model.shouldRestartAnimation == True:
+            self.model.shouldRestartAnimation = False
+            self.model.points = []
+            self.model.view.clairCanvas()
+            return 0
+    def stopAnimation(self):
+        self.model.view.animationMenu.entryconfig("Lancer l'animation", state="normal")
+        self.model.view.animationMenu.entryconfig("Arrêter l'animation", state="disabled")
+        self.model.view.animationMenu.entryconfig("Réinitialiser l'animation", state="normal")
+        self.model.view.runButton["state"] = "normal"
+        self.model.view.stopButton["state"] = "disabled"
+        self.model.view.restartButton["state"] = "normal"
+        self.model.stopAnimation()
+controller = Controller()
