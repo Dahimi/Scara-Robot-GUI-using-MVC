@@ -18,7 +18,7 @@ class View() :
         self.mainPannel = self.workspace = self.workspacePanel = self.XLabel = self.YLabel = self.stopRecordImage = self.recordImage = self.stopImage = self.runImage = " "
         self.mode = self.source = self.shape = self.temperature1 = self.temperature2 = self.vitesse1 = self.vitesse2 = self.h = " "
         self.runButton = self.stopButton= self.restartButton = self.color = self.shape = self.size =" "
-        self.robotDraw = self.elbow = self.center = self.effectiveWorkspace= self.bannedZone = " "
+        self.robotDraw = self.elbow = self.center = self.effectiveWorkspace= self.bannedZone =self.takeY = self.takeX = " "
         controller.setModel(self)
         print("model created")
         #self.initializeMainWindow()
@@ -164,11 +164,11 @@ class View() :
         self.vitesse2.grid(row=5, column=1, padx=4, pady=6)
         Label(workspacePanel, text="La vitesse du moteur 2 : ").grid(row=5, column=0, padx=4, pady=6)
         self.realX = Label(workspacePanel, width="15", bd=1, relief=SUNKEN)
-        self.realX.grid(row=4, column=1, padx=4, pady=6)
-        Label(workspacePanel, text="L'abscisse réel : ").grid(row=4, column=0, padx=4, pady=6)
+        self.realX.grid(row=6, column=1, padx=4, pady=6)
+        Label(workspacePanel, text="L'abscisse réel : ").grid(row=6, column=0, padx=4, pady=6)
         self.realY = Label(workspacePanel, width="15", bd=1, relief=SUNKEN)
-        self.realY.grid(row=5, column=1, padx=4, pady=6)
-        Label(workspacePanel, text="L'ordonné réel : ").grid(row=5, column=0, padx=4, pady=6)
+        self.realY.grid(row=7, column=1, padx=4, pady=6)
+        Label(workspacePanel, text="L'ordonné réel : ").grid(row=7, column=0, padx=4, pady=6)
         workspacePanel.pack(side=LEFT, fill=Y)
     def setWorkspace(self):
         self.workspacePanel = LabelFrame(self.mainPannel , text = "Espace de travail",width=630, height=630 , padx = 7 , pady = 7 )
@@ -222,7 +222,7 @@ class View() :
         i = 0
         for (text, value) in sources.items():
             Radiobutton(externalFrame, text=text, variable=self.source,
-                        value=value,command = self.controller.setSource()).grid(row=3, column=2 * i, columnspan=2)
+                        value=value,command = self.controller.setSource).grid(row=3, column=2 * i, columnspan=2)
             i = i + 1
         Label(externalFrame, text="The end effector is  : ").grid(row=6, column=1)
         move = {
@@ -234,7 +234,7 @@ class View() :
         i = 0
         for (text, value) in move.items():
             Radiobutton(externalFrame, text=text, variable=self.move,
-                        value=value, command=self.controller.setMove()).grid(row=7, column=2 * i, columnspan=2)
+                        value=value, command=self.controller.setMove).grid(row=7, column=2 * i, columnspan=2)
             i = i + 1
 
         Label(externalFrame, text="Envoyer les commandes vers :").grid(row=4, column=1)
@@ -247,8 +247,43 @@ class View() :
         Checkbutton(externalFrame, text="Envoyer à l'Arduino", variable=self.isExport, onvalue=1, offvalue=0, command = self.controller.setWhereToSend).grid(
             row=5, column=2)
         #externalFrame.grid(row=0, column=1, columnspan=2, sticky='w')
+        pointFrame = LabelFrame(externalFrame, text="Commander un point", padx=10, pady=10)
+        Label(pointFrame, text="L'abscisse X : ").grid(row=0, column=0)
+        Label(pointFrame, text="L'ordonnée Y':").grid(row=1, column=0)
+        Label(pointFrame, text="L'ordonnée Z':").grid(row=2, column=0)
+        self.takeX = Entry(pointFrame)
+        self.takeY = Entry(pointFrame)
+        self.takeZ = Entry(pointFrame)
+        self.takeX.grid(row=0, column=1)
+        self.takeY.grid(row=1, column=1)
+        self.takeZ.grid(row=2, column=1)
+        Label(pointFrame, text="").grid(row=3, column=0)
+        Button(pointFrame, text= "Saisir" , padx = 5 , pady = 5 , command = self.saisirPoint).grid(row = 4 , column =0 )
+        Button(pointFrame, text="Lâcher", padx=5, pady=5, command=self.lacherPoint).grid(row=4, column=1)
+        Label(externalFrame, text="").grid(row=8, column=0)
+        Label(externalFrame, text="").grid(row=9, column=0)
+        Label(externalFrame, text="").grid(row=10, column=0)
+        Label(externalFrame, text="").grid(row=11, column=0)
+        pointFrame.grid(row=12, column=0, columnspan=2)
         externalFrame.pack(fill=Y, side=LEFT)
         externalFrame.pack_propagate(0)
+
+    def saisirPoint(self):
+        try :
+           x = int( self.takeX.get().strip() )
+           y = int(self.takeY.get().strip())
+           self.controller.saisirPoint(x, y)
+        except ValueError:
+            messagebox.showerror("FORMAT NON ACCEPTABLE " , "Vérifiez bien que les coordonnées saisi sont bien des nombres ")
+
+    def lacherPoint(self):
+        try:
+            x = int(self.takeX.get().strip())
+            y = int(self.takeY.get().strip())
+            self.controller.lacherPoint(x, y)
+        except ValueError:
+            messagebox.showerror("FORMAT NON ACCEPTABLE ",
+                                 "Vérifiez bien que les coordonnées saisi sont bien des nombres ")
 
     def setStatusBar(self):
         statusBar = Frame(self.root)
@@ -260,7 +295,6 @@ class View() :
         Label(statusBar, text="La coordonnées Y: ").pack(side=RIGHT, padx=4, pady=2)
         statusBar.pack(side=BOTTOM, fill=X)
         return
-
     def _from_rgb(self,rgb):
         """translates an rgb tuple of int to a tkinter friendly color code
         """
@@ -273,8 +307,17 @@ class View() :
         self.color.set(color)
         self.controller.setPenColor()
     def resetRealCoordinates(self, realPoint):
-        self.realX["text"] = realPoint.x
-        self.realY["text"] = realPoint.y
+        self.realX["text"] = format(realPoint.x , '.2f')
+        self.realY["text"] = format(realPoint.y , '.2f')
+        self.theta1["text"] = format(realPoint.theta1*180/pi , '.2f')
+        self.theta2["text"] = format(realPoint.theta2 * 180 / pi, '.2f')
+    def setRobotState(self, robotState):
+        listOfStates = robotState.split(' ')
+        self.temperature1["text"] = listOfStates[0]
+        self.temperature2["text"] = listOfStates[1]
+        self.vitesse1["text"] = listOfStates[2]
+        self.vitesse2["text"] = listOfStates[3]
+        print(listOfStates[-1])
     def clairCanvas(self):
         self.workspace.delete("all")
         self.bannedZone = self.workspace.create_oval(self.canvasWidth / 2 - self.controller.getMinRadius(),
@@ -325,6 +368,39 @@ class Controller() :
         self.view.recordButton["state"] = "normal"
         self.view.stopRecordButton["state"] = "disabled"
         self.isRecording = False
+    def saisirPoint(self , x , y):
+        if self.model.isElectromangnet :
+            realPoint = RealPoint( "red" ,x , y )
+        else : realPoint = RealPoint( self.model.penColor ,x , y )
+        point = self.model.createPoint(realPoint)
+        if (point.x - self.view.canvasWidth / 2) ** 2 + (point.y - self.view.canvasHeight / 2) ** 2 < (self.getMinRadius()) ** 2 :
+            messagebox.showwarning("POSITION IMPOSSIBLE",
+                                   "\nla position que vous anticipez n'est pas accessible \n \nvous avez dépassé l'espace de travail")
+            return
+        if (point.x -self.view.canvasWidth/2)**2 + (point.y- self.view.canvasHeight/2)**2 > (self.view.canvasWidth /2)**2 :
+            messagebox.showwarning("POSITION IMPOSSIBLE",
+                                   "\nla position que vous anticipez n'est pas accessible \n \nvous avez dépassé l'espace de travail")
+            return
+        self.model.points.append(point)
+        self.view.paint(point)
+    def lacherPoint(self, x , y):
+        if self.model.isElectromangnet :
+            realPoint = RealPoint( "green" ,x , y )
+            print(realPoint.color)
+        else : realPoint = RealPoint( self.model.penColor ,x , y )
+        point = self.model.createPoint(realPoint)
+        if (point.x - self.view.canvasWidth / 2) ** 2 + (point.y - self.view.canvasHeight / 2) ** 2 < (
+        self.getMinRadius()) ** 2:
+            messagebox.showwarning("POSITION IMPOSSIBLE",
+                                   "\nla position que vous anticipez n'est pas accessible \n \nvous avez dépassé l'espace de travail")
+            return
+        if (point.x - self.view.canvasWidth / 2) ** 2 + (point.y - self.view.canvasHeight / 2) ** 2 > (
+                self.view.canvasWidth / 2) ** 2:
+            messagebox.showwarning("POSITION IMPOSSIBLE",
+                                   "\nla position que vous anticipez n'est pas accessible \n \nvous avez dépassé l'espace de travail")
+            return
+        self.model.points.append(point)
+        self.view.paint(point)
     def startAnimation(self):
         self.view.animationMenu.entryconfig("Lancer l'animation", state = "disabled")
         self.view.animationMenu.entryconfig("Arrêter l'animation", state="normal")
@@ -389,7 +465,7 @@ class Controller() :
         self.model.readDraw = True if self.view.source.get() == "draw" else False
     def setMove(self):
         self.model.isPen = True if self.view.move.get() == "pen" else False
-        self.isElectromangnet =False if self.view.source.get() != "pen" else True
+        self.model.isElectromangnet =False if self.view.move.get() == "pen" else True
     def setMode(self):
         self.model.isSysnchronized = True if self.view.mode.get() == "direct" else False
         print("mode syncro" + str(self.model.isSysnchronized))
@@ -406,7 +482,7 @@ class Model() :
         self.readDraw = True
         self.penColor = "red"
         self.penSize = 4
-        self.robotSpeed = 20.0
+        self.robotSpeed = 80.0
         self.points =[]
         self.rappot = 1
         self.isPen = True
@@ -449,9 +525,9 @@ class Model() :
 
     def startCommunication(self):
         try :
-            self.ArduinoSerial = serial.Serial(self.robotConfiguration.arduinoPort, self.robotConfiguration.dataRate, timeout=1)
+            self.ArduinoSerial = serial.Serial(self.robotConfiguration.arduinoPort, self.robotConfiguration.dataRate, timeout=20)
             time.sleep(2)
-            print("connection est établie")
+            print(self.ArduinoSerial.readline().decode("ascii"))
             return 1
         except serial.SerialException :
             return 0
@@ -459,25 +535,28 @@ class Model() :
     def createPoint(self, realPoint):
         x = (realPoint.x / self.rappot + self.view.canvasWidth / 2)
         y =  (self.view.canvasHeight / 2 - realPoint.y / self.rappot )
-        return Point(self.penSize, realPoint.color, x, y, realPoint.z)
+        return Point(self.penSize, realPoint.color, x, y, realPoint.z , realPoint.state)
     def createRealPoint(self, point):
         x = (point.x - self.view.canvasWidth/2)*self.rappot
         y = self.rappot * (self.view.canvasHeight /2 - point.y)
-        return RealPoint(point.color,x, y , point.z )
+        return RealPoint(point.color,x, y , point.z, point.state)
     def calculateCorrespondingAngles(self, realPoint):
         x, y , l1 , l2= realPoint.x , realPoint.y , self.robotConfiguration.arm1 ,self.robotConfiguration.arm2
         t1 = (x**2 + y**2 - l1**2 - l2**2 )
         t2 = 2*l1*l2
         theta2 = acos(t1/t2)
         theta1 = atan2(y, x ) - atan2(l2 * sin(theta2) , l1 + l2 * cos(theta2))
-        realPoint.theta1 = theta1
+        if (theta1 >= 0):
+            realPoint.theta1 = theta1
+        else :
+            realPoint.theta1 = theta1 + 2 * pi
         realPoint.theta2 = theta2
     def drawCircle(self) :
         self.points = []
         rayon = self.robotConfiguration.arm1 + self.robotConfiguration.arm2/2
         partialAngle = 2 * pi / 40;
         x, y = 0, 0
-        for i in range(40) :
+        for i in range(41) :
             x = rayon * cos(partialAngle * i)
             y = rayon * sin(partialAngle * i)
             self.points.append (self.createPoint(RealPoint(self.penColor,x, y)))
@@ -505,22 +584,35 @@ class Model() :
         x = l1 * cos(theta1) + l2*cos(theta1 + theta2)
         y = l1 * sin(theta1) + l2*sin(theta1 + theta2)
         return self.createPoint(RealPoint("black", x , y))
-    def arduinoWrite(self, theta1, theta2, afterstate = True):
-        print(theta1, "  ",theta2, "  ",afterstate )
+    def startCommunicationWithArduino(self, dataToArduino):
+        response = "error"
+        self.ArduinoSerial.write(dataToArduino.encode())
+        response = self.ArduinoSerial.readline().decode("ascii")
+        return response
+    def preparePoint(self):
+        print("data prepared")
+        self.points =[]
+        imporFile = open(self.robotConfiguration.importFile1, "r")
+        for line in imporFile:
+            line = line[:-1]
+            list = line.split(';')
+            realPoint = RealPoint(self.penColor, float(list[0]) , float(list[1]) , z= 0 , state = int(list[2]))
+            self.points.append(self.createPoint(realPoint))
+        imporFile.close()
 
 class Point() :
-    def __init__(self, size, color , x , y, z = 0) :
-        self.size , self.color , self.x , self.y , self.z = size , color , x , y , z
+    def __init__(self, size, color , x , y, z = 0 , state = -1) :
+        self.size , self.color , self.x , self.y , self.z , self.state = size , color , x , y , z , state
     def toString(self):
         print("x :", self.x, "  y ", self.y)
 class RealPoint():
-    def __init__(self, color, x, y, z=0):
+    def __init__(self, color, x, y, z=0,state = -1):
         self.x, self.y, self.z = x, y, z
         self.theta1 = self.theta2 = 0
         self.color =color
+        self.state = state
     def timeFromPreviousPoint(self, previousPoint, speed):
         if previousPoint == "" : return 0
-        print(sqrt((self.x - previousPoint.x)**2 + (self.y - previousPoint.y)**2))
         return sqrt((self.x - previousPoint.x)**2 + (self.y - previousPoint.y)**2)/speed
 class SimulationThread(threading.Thread):
 
@@ -529,12 +621,16 @@ class SimulationThread(threading.Thread):
             self.model = model
     def run(self):
         if self.model.isSysnchronized == False :
-            for i in range(10) :
+            for i in range(100) :
                 self.wait()
+                print("quit wait")
+                print(self.model.readFromFile)
+                if self.model.readFromFile == True:
+                    self.model.preparePoint()
                 iteratedPoints = self.model.points[:]
                 self.model.view.clairCanvas()
                 times = 0
-                realPoint = nextRealPoint = ""
+                realPoint = nextRealPoint = previouPoint = ""
                 exportFile1 = open(self.model.robotConfiguration.exportFile1, "w")
                 exportFile2 = open(self.model.robotConfiguration.exportFile2, "w")
                 i = 1
@@ -543,12 +639,14 @@ class SimulationThread(threading.Thread):
                         print("quit")
                         break
                     if i < len(iteratedPoints) :
-                        nextRealPoint = iteratedPoints[i]
+                        nextRealPoint = self.model.createRealPoint(iteratedPoints[i])
                         i += 1
                     else :
                         nextRealPoint = ""
                     realPoint = self.model.createRealPoint(point)
                     self.model.calculateCorrespondingAngles(realPoint)
+                    if nextRealPoint != "" :
+                        self.model.calculateCorrespondingAngles(nextRealPoint)
                     l1 = self.model.robotConfiguration.arm1
                     elbow = RealPoint(realPoint.color,cos(realPoint.theta1)*l1 , sin(realPoint.theta1) * l1)
                     if self.model.isToFile == True :
@@ -560,20 +658,51 @@ class SimulationThread(threading.Thread):
                         exportFile2.write(file2line)
                         pass
                     if self.model.isToArduino == True :
+                        theta1 = format(realPoint.theta1 * 180 / pi, '.2f')
+                        theta2 = format(realPoint.theta2 * 180 / pi, '.2f')
                         if self.model.isPen == True :
-                            distance = 0
+                            deltaTheta = 0
                             if nextRealPoint != "" :
-                                distance = sqrt((realPoint.x - nextRealPoint.x) ** 2 + (realPoint.y - nextRealPoint.y) ** 2)
-                            afterstate = True if distance < 10 else False
-                            self.model.arduinoWrite(realPoint.theta1*180/pi,realPoint.theta2*180/pi, afterstate)
-                        else :
-                            if point == iteratedPoints[-1] : self.model.arduinoWrite(realPoint.theta1*180/pi,realPoint.theta2*180/pi, False)
-                            else : self.model.arduinoWrite(realPoint.theta1*180/pi,realPoint.theta2*180/pi, True)
-                    #self       .model.view.paint(self.model.createPointFromAngles(realPoint))
+                                deltaTheta = max(abs(realPoint.theta1- nextRealPoint.theta1)*180/pi,abs(realPoint.theta2- nextRealPoint.theta2)*180/pi)
+                            afterstate = 1 if deltaTheta < 5 else 0
+                            dataToArduino = theta1 + " "+ theta2 +  " "+ str(afterstate)+ "\n"
+                            response = self.model.startCommunicationWithArduino(dataToArduino)
+                            response = response[:len(response)-1].strip()
+                            if  response == "error" :
+                                messagebox.showerror("ERREUR", "Une erreur est survenue au niveau de la carte Arduino")
+                                break
+                            print(afterstate)
+                            self.model.view.setRobotState(response)
+                        if self.model.isElectromangnet == True:
+                           afterstate = '1' if realPoint.color == "red" else '0'
+                           if realPoint.color == "red":
+                               if point == iteratedPoints[0] or point == iteratedPoints[len(iteratedPoints) - 1]:
+                                   afterstate = 2
+                               elif previouPoint.color != point.color:
+                                   afterstate = 2
+                               else : afterstate = 3
+                           if realPoint.color == "green":
+                               if point == iteratedPoints[0] or point == iteratedPoints[len(iteratedPoints) - 1]:
+                                   afterstate = 4
+                               elif previouPoint.color != point.color:
+                                   afterstate = 4
+                               else:
+                                   afterstate = 5
+                           dataToArduino = theta1 + " " + theta2 + " " + str(afterstate) + "\n"
+                           print(afterstate)
+                           response = self.model.startCommunicationWithArduino(dataToArduino)
+                           if response == "error":
+                               messagebox.showerror("ERREUR", "Une erreur est survenue au niveau de la carte Arduino")
+                               break
+                           self.model.view.setRobotState(response)
+
                     self.model.view.paint(point)
+                    previouPoint = realPoint
                     self.model.view.resetRealCoordinates(realPoint)
                     self.model.view.drawRobot(point, self.model.createPoint(elbow))
-                    time.sleep(0.2)
+                #if self.model.isToArduino :
+                #    dataToArduino += "\n"
+                #    self.model.startCommunicationWithArduino(dataToArduino, len(iteratedPoints))
                 self.stopAnimation()
                 self.model.view.robotDraw = " "
                 exportFile1.close()
