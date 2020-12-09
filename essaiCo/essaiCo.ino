@@ -7,9 +7,10 @@ String message = "";
 char readbuffer[16] ;
 float theta1, theta2;
 int cmdvit=300;
-int mode ; 
+int mode  , z ;
+float zcoordinate; 
 int i = 0 ;
- 
+
 void setup() {
   pinMode(electroPin,OUTPUT);
   Serial.begin(115200);
@@ -37,9 +38,10 @@ void handleComingData(){
         message += readbuffer[i];
       }
       theta1 = message.substring(0,message.indexOf(' ')).toFloat();
-      
       theta2 = message.substring(message.indexOf(' '),message.lastIndexOf(' ')).toFloat(); 
-      mode = message.substring(message.lastIndexOf(' ')).toInt();
+      zcoordinate = message.substring(message.lastIndexOf(' ')).toInt();
+      z  = (int)( zcoordinate /10) ;
+      mode = zcoordinate - 10 * z ; 
 }
 void moveServo(){
   Temperature1 = Dynamixel.readTemperature(dynamixel1); // Request and Print the Temperature       

@@ -136,8 +136,8 @@ class DialogWindow(Toplevel) :
             if (self.setRobotConfiguration() == 0):
                 print("repeat")
                 return
-            #if self.startCommunication() == 0 :
-             #  return
+            if self.startCommunication() == 0 :
+               return
             self.responce = 1
             self.destroy()
             self.grab_release()
