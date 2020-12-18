@@ -273,7 +273,7 @@ class View() :
            x = int( self.takeX.get().strip() )
            y = int(self.takeY.get().strip())
            z = int(self.takeZ.get().strip())
-           self.controller.saisirPoint(x, y,z)
+           self.controller.saisirPoint(x, y, z)
         except ValueError:
             messagebox.showerror("FORMAT NON ACCEPTABLE " , "Vérifiez bien que les coordonnées saisi sont bien des nombres ")
 
@@ -282,7 +282,7 @@ class View() :
             x = int(self.takeX.get().strip())
             y = int(self.takeY.get().strip())
             z = int(self.takeZ.get().strip())
-            self.controller.lacherPoint(x, y,z)
+            self.controller.lacherPoint(x, y, z)
         except ValueError:
             messagebox.showerror("FORMAT NON ACCEPTABLE ",
                                  "Vérifiez bien que les coordonnées saisi sont bien des nombres ")
@@ -319,7 +319,7 @@ class View() :
         self.temperature2["text"] = listOfStates[1]
         self.vitesse1["text"] = listOfStates[2]
         self.vitesse2["text"] = listOfStates[3]
-        print("receive" + robotState)
+        print(robotState)
     def clairCanvas(self):
         self.workspace.delete("all")
         self.bannedZone = self.workspace.create_oval(self.canvasWidth / 2 - self.controller.getMinRadius(),
@@ -370,10 +370,10 @@ class Controller() :
         self.view.recordButton["state"] = "normal"
         self.view.stopRecordButton["state"] = "disabled"
         self.isRecording = False
-    def saisirPoint(self , x , y,z):
+    def saisirPoint(self , x , y, z):
         if self.model.isElectromangnet :
-            realPoint = RealPoint( "red" ,x , y,z )
-        else : realPoint = RealPoint( self.model.penColor ,x , y ,z)
+            realPoint = RealPoint( "red" ,x , y , z)
+        else : realPoint = RealPoint( self.model.penColor ,x , y , z)
         point = self.model.createPoint(realPoint)
         if (point.x - self.view.canvasWidth / 2) ** 2 + (point.y - self.view.canvasHeight / 2) ** 2 < (self.getMinRadius()) ** 2 :
             messagebox.showwarning("POSITION IMPOSSIBLE",
@@ -387,9 +387,9 @@ class Controller() :
         self.view.paint(point)
     def lacherPoint(self, x , y,z):
         if self.model.isElectromangnet :
-            realPoint = RealPoint( "green" ,x , y ,z)
+            realPoint = RealPoint( "green" ,x , y , z)
             print(realPoint.color)
-        else : realPoint = RealPoint( self.model.penColor ,x , y,z )
+        else : realPoint = RealPoint( self.model.penColor ,x , y , z)
         point = self.model.createPoint(realPoint)
         if (point.x - self.view.canvasWidth / 2) ** 2 + (point.y - self.view.canvasHeight / 2) ** 2 < (
         self.getMinRadius()) ** 2:
@@ -667,14 +667,15 @@ class SimulationThread(threading.Thread):
                             if nextRealPoint != "" :
                                 deltaTheta = max(abs(realPoint.theta1- nextRealPoint.theta1)*180/pi,abs(realPoint.theta2- nextRealPoint.theta2)*180/pi)
                             afterstate = 1 if deltaTheta < 5 else 0
-                            zcoordinate = realPoint.z*10 + afterstate
-                            dataToArduino = theta1 + " "+ theta2 +  " "+ str(zcoordinate)+ "\n"
+                            zcoordinates = point.z + afterstate/10.0
+
+                            dataToArduino = theta1 + " "+ theta2 +  " "+ str(zcoordinates)+ "\n"
+                            print(dataToArduino)
                             response = self.model.startCommunicationWithArduino(dataToArduino)
                             response = response[:len(response)-1].strip()
                             if  response == "error" :
                                 messagebox.showerror("ERREUR", "Une erreur est survenue au niveau de la carte Arduino")
                                 break
-                            print(zcoordinate)
                             self.model.view.setRobotState(response)
                         if self.model.isElectromangnet == True:
                            afterstate = '1' if realPoint.color == "red" else '0'
@@ -691,9 +692,9 @@ class SimulationThread(threading.Thread):
                                    afterstate = 4
                                else:
                                    afterstate = 5
-                           zcoordinate = realPoint.z * 10 + afterstate
-                           dataToArduino = theta1 + " " + theta2 + " " + str(zcoordinate) + "\n"
-                           print(zcoordinate)
+                           zcoordinates = point.z + afterstate / 10.0
+                           dataToArduino = theta1 + " " + theta2 + " " + str(zcoordinates) + "\n"
+                           print(dataToArduino)
                            response = self.model.startCommunicationWithArduino(dataToArduino)
                            if response == "error":
                                messagebox.showerror("ERREUR", "Une erreur est survenue au niveau de la carte Arduino")
@@ -729,4 +730,6 @@ class SimulationThread(threading.Thread):
         self.model.view.stopButton["state"] = "disabled"
         self.model.view.restartButton["state"] = "normal"
         self.model.stopAnimation()
+
 controller = Controller()
+
