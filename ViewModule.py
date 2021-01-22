@@ -178,6 +178,7 @@ class View() :
         self.workspace = Canvas(self.workspacePanel,width=self.canvasWidth,height=self.canvasHeight, bg = "white")
         self.workspace.create_line(self.canvasWidth /2 ,  0 , self.canvasWidth/2 ,self.canvasHeight , fill="#476042" , width = 3  )
         self.workspace.create_line(0, self.canvasHeight/2, self.canvasWidth , self.canvasHeight/2, fill="#476042",width=3)
+        self.makeGrid()
         self.effectiveWorkspace = self.workspace.create_oval(0, 0, self.canvasWidth, self.canvasHeight, dash = (3, 4) , outline = "red")
         self.bannedZone = self.workspace.create_oval(self.canvasWidth /2  - self.controller.getMinRadius(), self.canvasHeight/2  -self.controller.getMinRadius(),
                                                      self.canvasWidth /2  + self.controller.getMinRadius(), self.canvasHeight/2  +self.controller.getMinRadius(), dash=(3, 4),outline="red")
@@ -188,6 +189,33 @@ class View() :
         self.workspace.bind( "<B1-Motion>", self.controller.mouseDragged )
         self.workspace.bind("<Button-1>", self.controller.mousePressed)
         self.workspace.bind("<Leave>", self.controller.mouseExit)
+
+    def makeGrid(self):
+        length = self.controller.model.rappot * self.canvasWidth / 2
+        realStep = int(int(length / 100) * 10 * 4 / 3)
+        step = realStep / self.controller.model.rappot
+        i = 1
+        self.workspace.create_text(self.canvasWidth / 2 - 9, self.canvasHeight / 2 + 9, text=str(0))
+        while step * i < self.canvasWidth / 2:
+            self.workspace.create_line(self.canvasWidth / 2 + i * step, self.canvasHeight / 2 - 5,
+                                       self.canvasWidth / 2 + i * step, self.canvasHeight / 2 + 5)
+            self.workspace.create_line(self.canvasWidth / 2 - i * step, self.canvasHeight / 2 - 5,
+                                       self.canvasWidth / 2 - i * step, self.canvasHeight / 2 + 5)
+            self.workspace.create_line(self.canvasWidth / 2 - 5, self.canvasHeight / 2 + i * step,
+                                       self.canvasWidth / 2 + 5, self.canvasHeight / 2 + i * step)
+            self.workspace.create_line(self.canvasWidth / 2 - 5, self.canvasHeight / 2 - i * step,
+                                       self.canvasWidth / 2 + 5, self.canvasHeight / 2 - i * step)
+            self.workspace.create_text(self.canvasWidth / 2 + i * step, self.canvasHeight / 2 + 12,
+                                       text=str(realStep * i))
+            self.workspace.create_text(self.canvasWidth / 2 - i * step, self.canvasHeight / 2 + 12,
+                                       text=str(-realStep * i))
+            self.workspace.create_text(self.canvasWidth / 2 - 18, self.canvasHeight / 2 + i * step,
+                                       text=str(-realStep * i))
+            self.workspace.create_text(self.canvasWidth / 2 - 15, self.canvasHeight / 2 - i * step,
+                                       text=str(realStep * i))
+            i = i + 1
+        print("printed")
+
     def paint(self , point):
         python_green = "#476042"
         self.XLabel["text"] = str(point.x - self.canvasWidth / 2)
@@ -272,8 +300,7 @@ class View() :
         try :
            x = int( self.takeX.get().strip() )
            y = int(self.takeY.get().strip())
-           z = int(self.takeZ.get().strip())
-           self.controller.saisirPoint(x, y, z)
+           self.controller.saisirPoint(x, y)
         except ValueError:
             messagebox.showerror("FORMAT NON ACCEPTABLE " , "Vérifiez bien que les coordonnées saisi sont bien des nombres ")
 
@@ -281,8 +308,7 @@ class View() :
         try:
             x = int(self.takeX.get().strip())
             y = int(self.takeY.get().strip())
-            z = int(self.takeZ.get().strip())
-            self.controller.lacherPoint(x, y, z)
+            self.controller.lacherPoint(x, y)
         except ValueError:
             messagebox.showerror("FORMAT NON ACCEPTABLE ",
                                  "Vérifiez bien que les coordonnées saisi sont bien des nombres ")
@@ -319,7 +345,7 @@ class View() :
         self.temperature2["text"] = listOfStates[1]
         self.vitesse1["text"] = listOfStates[2]
         self.vitesse2["text"] = listOfStates[3]
-        print(robotState)
+        print(listOfStates[-1])
     def clairCanvas(self):
         self.workspace.delete("all")
         self.bannedZone = self.workspace.create_oval(self.canvasWidth / 2 - self.controller.getMinRadius(),
@@ -329,6 +355,7 @@ class View() :
                                                      dash=(3, 4), outline="red")
         self.workspace.create_line(self.canvasWidth / 2, 0, self.canvasWidth / 2, self.canvasHeight, fill="#476042",width=3)
         self.workspace.create_line(0, self.canvasHeight / 2, self.canvasWidth, self.canvasHeight / 2, fill="#476042",width=3)
+        self.makeGrid()
         self.effectiveWorkspace = self.workspace.create_oval(0, 0, self.canvasWidth, self.canvasHeight, dash = (3, 4) , outline = "red")
     def drawRobot(self, point, elbow):
         if self.robotDraw == " ":
@@ -370,10 +397,10 @@ class Controller() :
         self.view.recordButton["state"] = "normal"
         self.view.stopRecordButton["state"] = "disabled"
         self.isRecording = False
-    def saisirPoint(self , x , y, z):
+    def saisirPoint(self , x , y):
         if self.model.isElectromangnet :
-            realPoint = RealPoint( "red" ,x , y , z)
-        else : realPoint = RealPoint( self.model.penColor ,x , y , z)
+            realPoint = RealPoint( "red" ,x , y )
+        else : realPoint = RealPoint( self.model.penColor ,x , y )
         point = self.model.createPoint(realPoint)
         if (point.x - self.view.canvasWidth / 2) ** 2 + (point.y - self.view.canvasHeight / 2) ** 2 < (self.getMinRadius()) ** 2 :
             messagebox.showwarning("POSITION IMPOSSIBLE",
@@ -385,11 +412,11 @@ class Controller() :
             return
         self.model.points.append(point)
         self.view.paint(point)
-    def lacherPoint(self, x , y,z):
+    def lacherPoint(self, x , y):
         if self.model.isElectromangnet :
-            realPoint = RealPoint( "green" ,x , y , z)
+            realPoint = RealPoint( "green" ,x , y )
             print(realPoint.color)
-        else : realPoint = RealPoint( self.model.penColor ,x , y , z)
+        else : realPoint = RealPoint( self.model.penColor ,x , y )
         point = self.model.createPoint(realPoint)
         if (point.x - self.view.canvasWidth / 2) ** 2 + (point.y - self.view.canvasHeight / 2) ** 2 < (
         self.getMinRadius()) ** 2:
@@ -483,7 +510,7 @@ class Model() :
         self.readFromFile = False
         self.readDraw = True
         self.penColor = "red"
-        self.penSize = 4
+        self.penSize = 0.5
         self.robotSpeed = 80.0
         self.points =[]
         self.rappot = 1
@@ -596,9 +623,14 @@ class Model() :
         self.points =[]
         imporFile = open(self.robotConfiguration.importFile1, "r")
         for line in imporFile:
-            line = line[:-1]
+            line = line[:]
             list = line.split(';')
-            realPoint = RealPoint(self.penColor, float(list[0]) , float(list[1]) , z= 0 , state = int(list[2]))
+            print(list[2])
+            print(line)
+            if  int(list[2]) == 0 :
+                state = 1
+            else : state = 0
+            realPoint = RealPoint(self.penColor, float(list[0]) , float(list[1]) , z= 0 , state = state )
             self.points.append(self.createPoint(realPoint))
         imporFile.close()
 
@@ -667,15 +699,13 @@ class SimulationThread(threading.Thread):
                             if nextRealPoint != "" :
                                 deltaTheta = max(abs(realPoint.theta1- nextRealPoint.theta1)*180/pi,abs(realPoint.theta2- nextRealPoint.theta2)*180/pi)
                             afterstate = 1 if deltaTheta < 5 else 0
-                            zcoordinates = point.z + afterstate/10.0
-
-                            dataToArduino = theta1 + " "+ theta2 +  " "+ str(zcoordinates)+ "\n"
-                            print(dataToArduino)
+                            dataToArduino = theta1 + " "+ theta2 +  " "+ str(afterstate)+ "\n"
                             response = self.model.startCommunicationWithArduino(dataToArduino)
                             response = response[:len(response)-1].strip()
                             if  response == "error" :
                                 messagebox.showerror("ERREUR", "Une erreur est survenue au niveau de la carte Arduino")
                                 break
+                            print(afterstate)
                             self.model.view.setRobotState(response)
                         if self.model.isElectromangnet == True:
                            afterstate = '1' if realPoint.color == "red" else '0'
@@ -692,9 +722,8 @@ class SimulationThread(threading.Thread):
                                    afterstate = 4
                                else:
                                    afterstate = 5
-                           zcoordinates = point.z + afterstate / 10.0
-                           dataToArduino = theta1 + " " + theta2 + " " + str(zcoordinates) + "\n"
-                           print(dataToArduino)
+                           dataToArduino = theta1 + " " + theta2 + " " + str(afterstate) + "\n"
+                           print(afterstate)
                            response = self.model.startCommunicationWithArduino(dataToArduino)
                            if response == "error":
                                messagebox.showerror("ERREUR", "Une erreur est survenue au niveau de la carte Arduino")
@@ -730,6 +759,4 @@ class SimulationThread(threading.Thread):
         self.model.view.stopButton["state"] = "disabled"
         self.model.view.restartButton["state"] = "normal"
         self.model.stopAnimation()
-
 controller = Controller()
-

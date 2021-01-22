@@ -1,6 +1,7 @@
 #include <math.h> 
 //Importer la librairie Serial.2 
-#include <DynamixelSerial2.h>
+#include <MX_AX_Serial1.h>
+//#include <DynamixelSerial2.h>
 // declaration des variables 
 // electroPin va être modélisé par une LED 
 #define electroPin 10
@@ -10,10 +11,9 @@ int dynamixel1 = 1 , dynamixel2 = 2;
 String message = "";
 char readbuffer[16] ;
 float theta1, theta2;
-int cmdvit=300;
+int cmdvit=50;
 // la variable 'mode' va déterminer si le stylo ( ou l'electroaimant ) est actif on non
-int mode , z ;
-float zcoordinate; 
+int mode ;
 int i = 0 ;
 
 void setup() {
@@ -23,9 +23,12 @@ void setup() {
   Dynamixel.begin(1000000,2); 
   delay(100);
   // Vitesses par defaut
-  Dynamixel.moveSpeed(dynamixel1,512,cmdvit);
+  Dynamixel.moveSpeed(dynamixel1,0,cmdvit);
   delay(100);
-  Dynamixel.moveSpeed(dynamixel2,512,cmdvit);
+  Dynamixel.moveSpeed(dynamixel2,2047,cmdvit);
+  Dynamixel.setEndless(dynamixel1, OFF ,ON);
+  Dynamixel.setEndless(dynamixel2, OFF ,ON);
+  
     delay(100);
   Serial.println("communication is set ") ; 
 }
@@ -55,20 +58,15 @@ void handleComingData(){
       //  23.67 23.90 23.4
       theta1 = message.substring(0,message.indexOf(' ')).toFloat();
       theta2 = message.substring(message.indexOf(' '),message.lastIndexOf(' ')).toFloat(); 
-      zcoordinate = message.substring(message.lastIndexOf(' ')).toFloat();
-      z = floor(zcoordinate);
-      mode =round( (zcoordinate - z)*10) ; 
-//      mode = message.substring(message.lastIndexOf(' ')).toInt();
-//      Serial.println(mode);
-      // adapter les valeurs des angles au valeurs réelles sur le dynamixel
+      mode = message.substring(message.lastIndexOf(' ')).toInt();
       translationDesAngles();
 }
 // Fonction pour commander les servos 
 void moveServo(){
   Temperature1 = Dynamixel.readTemperature(dynamixel1); // Request and Print the Temperature       
   Temperature2 = Dynamixel.readTemperature(dynamixel2); // Request and Print the Temperature
-  Dynamixel.moveSpeed(dynamixel1,theta1*1023/300,cmdvit);       
-  Dynamixel.moveSpeed(dynamixel2,theta2*1023/300,cmdvit);
+  Dynamixel.moveSpeed(dynamixel1,theta1*4095/360,cmdvit);       
+  Dynamixel.moveSpeed(dynamixel2,theta2*4095/360,cmdvit);
   Vitesse1 = Dynamixel.readSpeed(dynamixel1);
   Vitesse2 = Dynamixel.readSpeed(dynamixel2);
   // On attend jusqu'à ce que les servos atteignent le point 
@@ -76,11 +74,11 @@ void moveServo(){
   // Cette fonction permet de savoir l'état du stylo ou de l'electroaimant (0 ou 1)
   handleMode();
   // Print the variables in the Serial Monitor
-  Serial.print(z);
+  Serial.print(Temperature2);
   Serial.print(" ");
-  Serial.print(zcoordinate);
+  Serial.print(Temperature2);
   Serial.print(" ");
-  Serial.print(mode);
+  Serial.print(Vitesse1);
   Serial.print(" ");
   Serial.println(Vitesse2);
   
@@ -105,9 +103,7 @@ void waitForServo(){
   while(Dynamixel.moving(dynamixel1) == 1 or Dynamixel.moving(dynamixel2) == 1)delay(10);
 }
 void translationDesAngles(){
-  int theta0 = 150 ;
-  theta1 = theta1 + theta0 -90 ;
-  if( theta1 > 300) theta1 -=300;
-  theta2 = theta2 + theta0 -90 ;
-  if( theta2 > 300) theta2 -=300;  
+  theta1 = 360 - theta1;
+  theta2 = 180 -theta2;
+   
 }
