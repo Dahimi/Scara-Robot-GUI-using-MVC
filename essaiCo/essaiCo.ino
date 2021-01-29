@@ -28,7 +28,7 @@ void setup() {
   Dynamixel.moveSpeed(dynamixel2,2047,cmdvit);
   Dynamixel.setEndless(dynamixel1, OFF ,ON);
   Dynamixel.setEndless(dynamixel2, OFF ,ON);
-  
+  cmdvit = 200;
     delay(100);
   Serial.println("communication is set ") ; 
 }

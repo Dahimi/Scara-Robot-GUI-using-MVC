@@ -537,6 +537,21 @@ class Model() :
     def mouseDragged(self, event):
         point = Point(self.penSize, self.penColor, event.x , event.y)
         self.points.append(point)
+        if self.isSysnchronized == True :
+            realPoint = self.createRealPoint(point)
+            self.calculateCorrespondingAngles(realPoint)
+            theta1 = format(realPoint.theta1 * 180 / pi, '.2f')
+            theta2 = format(realPoint.theta2 * 180 / pi, '.2f')
+            state = 3
+            if realPoint.color == "green" :
+                state = 5
+            dataToArduino = theta1 + " " + theta2 + " " + str(state) + "\n"
+            if self.isToArduino :
+                self.startCommunicationWithArduino(dataToArduino)
+            print("go to point" + dataToArduino)
+            l1 = self.robotConfiguration.arm1
+            elbow = RealPoint(realPoint.color, cos(realPoint.theta1) * l1, sin(realPoint.theta1) * l1)
+            self.view.drawRobot(point, self.createPoint(elbow))
         self.view.paint(point)
     def restartAnimation(self):
         self.shouldStopAnimation = True
@@ -692,8 +707,9 @@ class SimulationThread(threading.Thread):
                         exportFile2.write(file2line)
                         pass
                     if self.model.isToArduino == True :
-                        theta1 = format(realPoint.theta1 * 180 / pi, '.2f')
+                        theta1 = format(realPoint.theta1 * 180 / pi , '.2f')
                         theta2 = format(realPoint.theta2 * 180 / pi, '.2f')
+
                         if self.model.isPen == True :
                             deltaTheta = 0
                             if nextRealPoint != "" :
