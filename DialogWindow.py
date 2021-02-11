@@ -88,7 +88,7 @@ class DialogWindow(Toplevel) :
         arduinoFrame = LabelFrame(self.parentFrame, text = "Communication avec la carte Arduino", width = 500 , height = 100 , padx = 20 , pady= 10)
         portLabel = Label(arduinoFrame, text = "Le port de la Carte Arduino ")
         self.portTextField = Entry(arduinoFrame)
-        self.portTextField.insert(0,"COM9")
+        self.portTextField.insert(0,"COM17")
         dataRateLabel = Label(arduinoFrame, text = "Débit de communication ")
         self.dataRateCombo = ttk.Combobox(arduinoFrame , values = ( "9600", "115200","1000000" ))
         self.dataRateCombo.current(1)

@@ -270,6 +270,7 @@ class View() :
         self.isImport.set(True)
         self.isExport = BooleanVar()
         self.isExport.set(False)
+
         Checkbutton(externalFrame, text="Exporter vers le fichier", variable=self.isImport, onvalue=1, offvalue=0 , command = self.controller.setWhereToSend).grid(
             row=5, column=1)
         Checkbutton(externalFrame, text="Envoyer à l'Arduino", variable=self.isExport, onvalue=1, offvalue=0, command = self.controller.setWhereToSend).grid(
@@ -293,6 +294,10 @@ class View() :
         Label(externalFrame, text="").grid(row=10, column=0)
         Label(externalFrame, text="").grid(row=11, column=0)
         pointFrame.grid(row=12, column=0, columnspan=2)
+        self.recordMvt = BooleanVar()
+        self.recordMvt.set(False)
+        Checkbutton(externalFrame, text="Enregistrer le mouvement", variable=self.recordMvt, onvalue=1, offvalue=0,
+        command=self.controller.isRecordMvt).grid(row=13, column=1)
         externalFrame.pack(fill=Y, side=LEFT)
         externalFrame.pack_propagate(0)
 
@@ -485,6 +490,9 @@ class Controller() :
         return
     def about(self):
         self.model.about()
+    def isRecordMvt(self):
+        self.model.recordMouvment = True if self.view.recordMvt.get() == 1 else False
+        self.model.startRecordMvt()
     def setWhereToSend(self):
         self.model.isToFile = True if self.view.isImport.get() == 1 else False
         self.model.isToArduino =True if  self.view.isExport.get() == 1 else False
@@ -516,11 +524,13 @@ class Model() :
         self.rappot = 1
         self.isPen = True
         self.isElectromangnet = False
+        self.recordMouvment = False
         self.shouldStopAnimation = True
         self.shouldRestartAnimation = False
         self.simulationThread = SimulationThread(self)
         self.simulationThread.daemon = True ;
         self.simulationThread.start()
+        self.recordThread = None
     def setRobotConfiguration(self, robotConfiguration):
         self.robotConfiguration = robotConfiguration
     def setRapport(self):
@@ -534,6 +544,11 @@ class Model() :
             os.system(self.robotConfiguration.exportFile1)
         elif option =="export2" :
             os.system(self.robotConfiguration.exportFile2)
+
+    def startRecordMvt(self):
+        self.recordThread = RecordingThread(self)
+        self.recordThread.daemon = True;
+        self.recordThread.start()
     def mouseDragged(self, event):
         point = Point(self.penSize, self.penColor, event.x , event.y)
         self.points.append(point)
@@ -663,6 +678,26 @@ class RealPoint():
     def timeFromPreviousPoint(self, previousPoint, speed):
         if previousPoint == "" : return 0
         return sqrt((self.x - previousPoint.x)**2 + (self.y - previousPoint.y)**2)/speed
+class RecordingThread(threading.Thread):
+    def __init__(self, model):
+        threading.Thread.__init__(self)
+        self.model = model
+    def run(self):
+        while self.model.recordMouvment == True:
+            response = self.model.startCommunicationWithArduino(".")
+            response = response[:len(response) - 1].strip()
+            realPoint = RealPoint(self.model.penColor, 0, 0 , 0 , 0)
+            list = response.split(" ")
+            realPoint.theta1 = float(list[0]) * pi/180
+            realPoint.theta2 = float(list[1])* pi/180
+            point = self.model.createPointFromAngles(realPoint)
+            l1 = self.model.robotConfiguration.arm1
+            elbow = RealPoint(realPoint.color, cos(realPoint.theta1) * l1, sin(realPoint.theta1) * l1)
+            self.model.points.append(point)
+            self.model.view.drawRobot(point, self.model.createPoint(elbow))
+            self.model.view.paint(point)
+            print(response)
+
 class SimulationThread(threading.Thread):
 
     def __init__(self, model):
