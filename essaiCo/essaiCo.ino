@@ -13,6 +13,8 @@ String message = "";
 char readbuffer[16] ;
 float theta1, theta2;
 int cmdvit=50;
+float position1, position2 ;
+boolean isTorque = true, isRecord = false ;
 // la variable 'mode' va déterminer si le stylo ( ou l'electroaimant ) est actif on non
 int mode ;
 int i = 0 ;
@@ -29,7 +31,8 @@ void setup() {
   //Dynamixel.moveSpeed(dynamixel2,2047,cmdvit);
   Dynamixel.setEndless(dynamixel1, OFF ,ON);
   Dynamixel.setEndless(dynamixel2, OFF ,ON);
-  cmdvit = 100;
+
+  cmdvit = 75;
     delay(100);
   Serial.println("communication is set ") ; 
 }
@@ -39,12 +42,21 @@ void loop() {
   if(Serial.available() > 0  ) {  
       // fonction pour traiter les données reçues à partir du moniteur ( surtout le format)     
       handleComingData();
-      // Envoyer la commande aux servos 
-      moveServo();
-     
-
+      
   }    
-
+  if(isRecord == true ){
+    if( isTorque == true){
+         Dynamixel.torqueStatus(dynamixel1, OFF );
+         Dynamixel.torqueStatus(dynamixel2, OFF )  ;
+         isTorque = false;
+      }   
+        position1 = 360 - Dynamixel.readPosition(dynamixel1)* 360.0/4096;
+        position2 = 180 - Dynamixel.readPosition(dynamixel2)* 360.0/4096;
+        Serial.print(position1);
+        Serial.print(" ");
+        Serial.println(position2);
+        delay(100);
+  }
 }
 // Traiter les messages reçues à partir du port 
 void handleComingData(){
@@ -54,13 +66,41 @@ void handleComingData(){
       for(int i = 0 ; i< readCharacter; i++){
         message += readbuffer[i];
       }
-      // le format du message reçu est de la forme : "theta1 theta2 mode"
-      // affecter à chaque variable sa valeur correspondante 
-      //  23.67 23.90 23.4
+      if (message == "." ){        
+       isRecord = true;
+     }
+     else if(message == ","){
+      isRecord = false;
+      Serial.println("ok"); 
+     }
+     else {
+      isRecord = false;
+      if( isTorque == false){
+         Dynamixel.torqueStatus(dynamixel1, ON );
+         Dynamixel.torqueStatus(dynamixel2, ON )  ;
+         isTorque = true;
+      }
       theta1 = message.substring(0,message.indexOf(' ')).toFloat();
       theta2 = message.substring(message.indexOf(' '),message.lastIndexOf(' ')).toFloat(); 
       mode = message.substring(message.lastIndexOf(' ')).toInt();
       translationDesAngles();
+
+      if(mode == 7 or mode == 8){
+        if(b ==1){
+          monter();
+          delay(500);
+          b= 0;
+        }
+      }
+      if(mode == 7 ){
+        mode = 0;
+      }
+      if(mode == 8 ){
+        mode = 1;
+      }
+      // Envoyer la commande aux servos 
+      moveServo();
+     }
 }
 // Fonction pour commander les servos 
 void moveServo(){
@@ -84,20 +124,6 @@ void moveServo(){
   Serial.println(Vitesse2);
   
 }
-
-//void handleMode(){
-//   if(mode==0){
-//      digitalWrite(electroPin,HIGH);
-//      delay(50);
-//      digitalWrite(electroPin,LOW);
-//    }
-//   if(mode==1){
-//    digitalWrite(electroPin,HIGH);
-//    delay(50);}
-//   if(mode==2){digitalWrite(electroPin,HIGH);delay(5000);}
-//   if(mode==3){digitalWrite(electroPin,HIGH);}
-//   if(mode==4){digitalWrite(electroPin,LOW); delay(5000);}
-//   if(mode==5){digitalWrite(electroPin,LOW);}
 //}
 void handleMode(){
    if(mode==0){
@@ -105,9 +131,11 @@ void handleMode(){
         descente();
         delay(1000);
         monter();
+        delay(100);
         }  
      else {
-      monter();  
+      monter();
+      delay(100);  
        b=0;     
      }    
    }
@@ -117,33 +145,11 @@ void handleMode(){
     descente();
     delay(1000);
   b=1;
-  }
-   }
-   if(mode==2){
-    Dynamixel.turn(3,RIGTH,1023);
-    delay(2900);
-    Dynamixel.turn(3,RIGTH,0);
-    digitalWrite(electroPin,HIGH);delay(3000);
-     Dynamixel.turn(3,LEFT,1023);
-      delay(2900);
-     Dynamixel.turn(3,RIGTH,0);}
-   if(mode==3){
-  digitalWrite(electroPin,HIGH);}
-   if(mode==4){
-    Dynamixel.turn(3,RIGTH,1023);
-    delay(2900);
-    Dynamixel.turn(3,RIGTH,0);
-    digitalWrite(electroPin,LOW); delay(3000);
-     Dynamixel.turn(3,LEFT,1023);
-    delay(2900);
-    Dynamixel.turn(3,RIGTH,0);
-    }
-   if(mode==5){
-  digitalWrite(electroPin,LOW);}
+  } }
 }
 // fonction pour attendre les servos 
 void waitForServo(){
-  while(Dynamixel.moving(dynamixel1) == 1 or Dynamixel.moving(dynamixel2) == 1)delay(10);
+  while(Dynamixel.moving(dynamixel1) != 0 or Dynamixel.moving(dynamixel2) != 0)delay(10);
 }
 void translationDesAngles(){
   theta1 = 360 - theta1;
@@ -152,11 +158,11 @@ void translationDesAngles(){
 }
 void descente(){
         Dynamixel.turn(3,RIGTH,1023);
-        delay(2900*2);
+        delay(3500);//2900*2
         Dynamixel.turn(3,RIGTH,0);
 }
 void monter(){
   Dynamixel.turn(3,LEFT,1023);
-        delay(2900*2); 
+        delay(3500); 
        Dynamixel.turn(3,LEFT,0);
 }

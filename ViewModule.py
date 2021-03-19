@@ -492,7 +492,8 @@ class Controller() :
         self.model.about()
     def isRecordMvt(self):
         self.model.recordMouvment = True if self.view.recordMvt.get() == 1 else False
-        self.model.startRecordMvt()
+        if self.model.recordMouvment == True :
+            self.model.startRecordMvt()
     def setWhereToSend(self):
         self.model.isToFile = True if self.view.isImport.get() == 1 else False
         self.model.isToArduino =True if  self.view.isExport.get() == 1 else False
@@ -683,8 +684,12 @@ class RecordingThread(threading.Thread):
         threading.Thread.__init__(self)
         self.model = model
     def run(self):
+        isBeginning = True
         while self.model.recordMouvment == True:
-            response = self.model.startCommunicationWithArduino(".")
+            if isBeginning:
+                response = self.model.startCommunicationWithArduino(".")
+                isBeginning = False
+            else : response = self.model.ArduinoSerial.readline().decode("ascii")
             response = response[:len(response) - 1].strip()
             realPoint = RealPoint(self.model.penColor, 0, 0 , 0 , 0)
             list = response.split(" ")
@@ -697,7 +702,8 @@ class RecordingThread(threading.Thread):
             self.model.view.drawRobot(point, self.model.createPoint(elbow))
             self.model.view.paint(point)
             print(response)
-
+        response = self.model.startCommunicationWithArduino(",")
+        print("thread dead")
 class SimulationThread(threading.Thread):
 
     def __init__(self, model):
@@ -749,7 +755,9 @@ class SimulationThread(threading.Thread):
                             deltaTheta = 0
                             if nextRealPoint != "" :
                                 deltaTheta = max(abs(realPoint.theta1- nextRealPoint.theta1)*180/pi,abs(realPoint.theta2- nextRealPoint.theta2)*180/pi)
-                            afterstate = 1 if deltaTheta < 5 else 0
+                            afterstate = 1 if deltaTheta < 7 else 0
+                            if point == iteratedPoints[0]:
+                                afterstate = 8 if deltaTheta < 5 else 7
                             dataToArduino = theta1 + " "+ theta2 +  " "+ str(afterstate)+ "\n"
                             response = self.model.startCommunicationWithArduino(dataToArduino)
                             response = response[:len(response)-1].strip()
@@ -757,6 +765,7 @@ class SimulationThread(threading.Thread):
                                 messagebox.showerror("ERREUR", "Une erreur est survenue au niveau de la carte Arduino")
                                 break
                             print(afterstate)
+                            print("response" , response)
                             self.model.view.setRobotState(response)
                         if self.model.isElectromangnet == True:
                            afterstate = '1' if realPoint.color == "red" else '0'
